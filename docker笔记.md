@@ -55,13 +55,13 @@ images 子命令主要支持以下选项：
 更多子命令选项可通过 man docker-images 来查看。
 
 2. 使用 tag 命令添加镜像标签，例如
+
 ```
 docker tag ubuntu:12.04 myubuntu:12
 ```
 实际上它们指向的是同一个镜像文件，只是别名不同，docker tag 命令添加的标签实际上起到了类似链接的作用。
 
-3. 使用 inspect 命令查看详细信息
-命令格式
+3. 使用 inspect 命令查看详细信息，命令格式
 ```
 docker [image] inspect NAME:TAG
 ```
@@ -73,6 +73,7 @@ docker inspect myubuntu:12
 ```
 docker inspect -f {{".RootFS"}} myubuntu:12
 ```
+
 4. 使用 history 命令查看镜像历史
 
 格式
@@ -105,8 +106,11 @@ docker search --filter=stars=4 tensorflow
 结果包含镜像名字，描述，收藏数，是否官方创建，是否自动创建等，默认输出结构按照收藏数排序
 
 ## 删除和清理镜像
+
 rm 和 prune 子命令
+
 1. 使用标签删除镜像
+
 使用 docker rmi 或 dockers image rm 命令删除，命令格式
 ```
 docker rmi IMAGE [IMAGE...]
@@ -120,7 +124,9 @@ docker rmi IMAGE [IMAGE...]
 docker rmi myubuntu:12
 ```
 当同一镜像拥有多个标签的时候，dockers rmi 命令只是删除了该镜像多个标签中的指定标签而已，并不影响镜像文件。
+
 2. 使用镜像id删除镜像
+
 当 docker rmi 命令后跟镜像 ID 时，会先尝试删除所有指向该镜像的标签，然后删除该镜像文件本身。需要注意的是，当有镜像创建的容器存在时，镜像文件默认无法被删除。
 先使用 docker ps -a 命令查看本机上存在的所有容器
 ```
@@ -143,6 +149,7 @@ docker rm 54361e
 docker rmi 5b117edd
 ```
 3. 清理镜像
+
 使用 Docker 一段时间后，系统中可能会遗留一些临时的镜像文件，以及一些没有被使用的镜像，可以通过 docker image prune 命令来进行清理。
 
 支持的选项包括：
@@ -156,8 +163,11 @@ docker image prune -f
 ```
 
 ## 创建镜像
+
 创建镜像的方法主要有三种，基于已有镜像的容器创建、基于本地模板导入、基于 Dockerfile 创建。
+
 1. 基于已有容器创建
+
 使用 docker [container] commit 命令
 ```
 docker [container] commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
@@ -181,7 +191,9 @@ exit
 docker [container] commit -m "Added a new file" -a "li shuang" 45a2238d01d0 test:0.1
 ```
 如果顺利的话会返回新镜像的 ID，通过 docker images 就可以看到新镜像了。
+
 2. 基于本地模板导入
+
 用户也可以直接从一个操作系统模板文件导入一个镜像，主要使用docker [container] import 命令。命令格式
 
 ```
@@ -197,6 +209,7 @@ cat ubuntu-18.04-x86_64-minimal.tar.gz | docker import - ubuntu:18.04
 docker iamges
 ```
 3. 基于 Dockerfile 创建
+
 这是最常见的方式。Dockile 是一个文本文件，利用给定的指令描述基于某个父镜像创建新镜像的过程。下面给出 Dockerfile 的一个简单示例，基于 debian:stretch-slim 镜像安装 Python 3 环境，构成一个新的 python:3 镜像：
 ```
 FROM debian:stretch-slim
@@ -217,6 +230,7 @@ docker [image] build -t python:3 .
 Docker 镜像的 save 和 load 子命令。用户可以使用 docker [iamge] save 和 docker [image] load 命令来存出和载入镜像。
 
 1. 存出镜像
+
 docker [image] save 命令，支持参数 -o、-output string 参数，导出镜像到指定的文件中。
 
 例如，导出本地的 ubuntu:latest 镜像文件为 ubuntu_latest.tar，如下
@@ -226,6 +240,7 @@ docker image save -o ubuntu_latest.tar ubuntu:latest
 然后，我们就可以将 ubuntu_latest.tar 文件分享给其他人，其他人也可以使用我们保存的镜像。
 
 2. 载入镜像
+
 docker [iamge] load 将导出的 tar 文件再导入本地镜像库，支持 -i、-input string选项，从指定文件中读入镜像内容。
 ```
 docker load -i ubuntu_latest.tar
@@ -249,6 +264,7 @@ docker push user/test:latest
 ## 创建容器
 
 1. 新建容器
+
 可以使用 docker [container] create 命令新建一个容器，例如：
 ```
 docker create -it ubuntu:latest
@@ -257,12 +273,14 @@ docker create -it ubuntu:latest
 选项包含几大类：与容器运行模式相关、与容器环境配置相关、与容器资源限制和安全保护相关。太多，不写，见《Docker 技术入门与实战 第三版》40页。
 
 2. 启动容器
+
 docker [container] start 命令启动。
 ```
 docker start d41ec
 ```
 
 3. 新建并启动容器
+
 命令 docker [container] run 等价于先执行 docker [container] create 命令，再执行 docker [container] start 命令。
 例如下面命令输出一个「Hello World」，之后容器自动终止
 ```
@@ -302,12 +320,14 @@ docker [container] run 命令常见错误码
 命令执行后出错，会默认返回命令的退出错误码。
 
 4. 守护态运行
+
 更多时候，需要让 Docker 容器在后台以守护态（Daemonized）形式运行。此时，可以通过添加 -d 参数来实现。
 例如，下面的命令会在后台运行容器：
 ```
 docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
 ```
 容器启动后会返回一个 id，可以通过 docker ps 或 docker container ls 命令查看容器信息。
+
 5. 查看容器输出
 
 要查看容器的输出信息，通过 docker [container] logs 命令，该命令支持的选项
@@ -318,3 +338,288 @@ docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
 - -tail string：输出最近的若干日志；
 - -t，-timestamps：显示时间戳信息；
 - -until string：输出某个时间之前的日志。
+
+查看某容器的输出，可以使用下面的命令
+```
+docker logs 177
+```
+
+## 停止容器
+
+相关命令：pause/unpause、stop 和 prune 子命令
+
+1. 暂停容器
+
+使用命令 docker [container] pause CONTAINER [CONTAINER...] 命令暂停一个运行中的容器。
+
+```
+docker ps
+docker pause 177
+docker ps
+```
+查看容器状态转换为（Paused）
+
+2. 终止容器
+
+使用 docker [container] stop 来终止一个运行中的容器。该命令的格式为 docker [container] stop [-t|--time[=10]] [CONTAINER...]
+
+该命令会首先向容器发送 SIGTERM 信号，等待一段超时时间后（默认为10秒），在发送 SIGKILL 信号来终止容器：
+```
+docker stop 177
+```
+此时，执行 docker container prune 命令，自动清除所有处于停止状态的容器。还可以通过 docker [container] kill 直接发送 SIGKILL 信号来强行终止容器。处于终止状态的容器，可以通过 docker [container] start 命令重新启动。docker [container] restart 先将一个运行态的容器先终止，再重新启动。
+
+## 进入容器
+
+使用 -d 参数，容器启动进入后台，用户无法看到容器中的信息，也无法进行操作。可以使用 attach 或 exec 命令进入容器操作。
+
+1. attach 命令
+
+Docker 自带的命令，格式：
+```
+docker [container] attach [--detach-keys[=[]]] [--no-stdin] [--sig-proxy[=true]] CONTAINER
+```
+
+这个命令支持三个主要选项：
+
+- detach-keys[=[]]：指定退出 attach 模式的快捷键序列，默认是 CTRL-p CTRL-q；
+- --no-stdin=true|false：是否关闭标准输入，默认是保持打开；
+- --sig-proxy=true|false：是否代理收到的系统信号给应用进程，默认为 true。
+
+使用示例：
+```
+docker run -itd ubuntu
+docker attach 8263
+```
+但是，当多个窗口同时 attach 到同一个容器的时候，所有的窗口都会同步显示；当某个窗口因命令阻塞时，其他窗口也无法执行操作了。
+
+2. exec 命令
+
+exec 命令是从 Docker 的1.3.0 版本起的，可以再运行中容器内直接执行任意命令。格式：
+```
+docker [container] exec [-d|--detach] [--detach-keys[=[]]] [-i|--interactive] [--privileged] [-t|--tty] [-u|--user[-USER]] CONTAINER COMMAND [ARG...] 
+```
+
+较为重要的参数有：
+
+- -d，--detach：在容器中后台执行命令；
+- --detach-keys=""：指定将容器切回后台的按键；
+- -e，--env=[]：指定环境变量列表；
+- -i，--interactive=true|false：打开标准输入接受用户输入命令，默认值为 false；
+- --privileged=true|false：是否给执行命令以高权限，默认值为 false；
+- -t，--tty=true|false：分配伪终端，默认值为 false；
+- -u，--user=""：执行命令的用户名或 ID。
+
+例如进入到刚创建的容器中，并启动一个bash：
+```
+docker exec -it 8263 /bin/bash
+```
+会打开一个新的 bash 终端，不影响其他用户的前提下，用户可以与容器进行交互。
+
+## 删除容器
+
+可以使用 docker [container] rm 命令删除处于终止或退出状态的容器，格式
+```
+docker [container] rm [-f|--force] [-l|--link] [-v|--volumes] CONTAINER [CONTAINER...]
+```
+支持的选项：
+
+- -f，--force=false：是否强行终止并删除一个运行中的容器；
+- -l，--link=false：删除容器的连接，但保留容器；
+- -v，--volumes=false：删除容器挂载的数据卷。
+
+例如查看全部容器，选择一个删除
+```
+docker ps -a
+docker rm 8263
+```
+在使用 docker rm 命令时，默认只能删除已经处于终止或退出状态的容器，并不能删除还处于运行状态的容器。如果要直接删除一个运行中的容器可以添加 -f 参数，Docker 会先发送 SIGKILL 信号给容器，终止其中的应用，然后强行删除：
+```
+docker rm -f 015
+```
+
+## 导入和导出容器
+
+1. 导出容器
+
+导出容器是指，将一个已经创建的容器导出到一个文件，不管此时这个容器是否处于运行状态。可以使用 docker [container] export 命令，该命令格式为：
+```
+docker [container] export [-o|--output[=""]] CONTAINER
+```
+其中可以通过 -o 选项指定导出的 tar 文件名，也可以直接通过重定向来实现。
+```
+docker export -o hello.tar 8263
+或
+docker export 8263 > heheh.tar
+```
+导出的 tar 文件传输到其他机器上就可以通过导入命令直接导入到系统中，实现容器的迁移。
+
+2. 导入容器
+
+导出的 tar 文件可以使用 docker [container] import 命令导入变成镜像，格式：
+```
+docker import [-c|--change[=[]]] [-m|--message[=MESSAGE]] file|URL| - [REPOSITORY[:TAG]]
+```
+-c，--change=[] 选项在导入的同时执行对容器进行修改的Dockerfile指令。示例：
+```
+docker import hello.tar hello:v1.0
+```
+
+这个命令和 docker load 命令导入镜像文件类似，事实上，使用 docker load 导入镜像存出文件到本地镜像库，和 docker [container] import 导入一个容器快照到本地镜像仓库都可以使用，区别是：容器快照将丢弃所有的历史记录和元数据信息（即仅保存容器当时的快照状态），而镜像存出文件将保存完整记录，体积更大。此外，从容器快照文件导入时可以重新指定标签等元数据。
+
+## 查看容器
+
+inspect、top 和 stats 子命令。
+
+1. 查看容器详情
+
+使用 docker [container] inspect [OPTIONS] CONTAINER [CONTAINER...] 子命令。返回的容器具体信息包括容器 ID，创建时间，路径，状态，镜像，配置等信息在内的各项详细信息，以 json 格式返回。
+```
+docker inspect 174
+```
+
+2. 查看容器内进程
+
+使用 docker [container] top [OPTIONS] CONTAINER [CONTAINER...] 子命令。类似 Linux 的 top 命令，会打印出容器内的进程信息，包括 PID、用户、时间、命令等。
+
+```
+docker top 17451
+```
+
+3. 查看统计信息
+
+查看统计信息可以使用 docker [container] stats [OPTIONS] [CONTAINER...] 子命令，会显示 CPU、内存、存出、网络等使用情况的统计信息。选项包括：
+- a，-all：输出所有容器统计信息，默认仅在运行中；
+- -format string：格式化输出信息；
+- -no-stream：不持续输出，默认会自动更新持续实时结果；
+- -no-trunc：不截断输出信息。
+
+```
+docker stats 17451
+docker stats -a
+```
+
+## 其他容器命令
+
+包括 cp、diff、port 和 update 子命令
+
+1. 复制文件
+
+cp 命令支持在容器和主机之间复制文件。命令格式：
+
+```
+docker [container] cp [OPTIONS] CONTAINER:SRC_PATH DEST_PATH|-
+```
+支持的选项包括：
+- -a，-archive：打包模式，复制文件会带有原始的 uid/gid 信息
+- -L，-follow-link：跟随软连接。当原路径为软连接时，默认只复制链接信息，使用该选项会复制链接的目标内容。
+
+复制本地文件 hello.tar 到 17451 容器的 /tmp 路径下
+
+```
+docker cp hello.tar 17451:/tmp/
+```
+
+2. 查看变更
+
+diff 命令查看容器内文件系统的变更。命令格式为：
+```
+docker [container] diff CONTAINER
+```
+查看 17451 的数据修改变更：
+```
+docker diff 17451
+```
+
+3. 查看端口映射
+
+port 命令可以查看容器的端口映射情况。命令格式：
+```
+docker [container] port CONTAINER [PRIVATE_PORT[/PROTO]]
+```
+查看 17451 容器的端口映射情况：
+```
+docker port 17451
+```
+
+4. 更新配置
+
+update 命令可以更新容器的一些运行时配置，主要是一些资源限制份额。命令格式为：
+```
+docker [container] update [OPTIONS] CONTAINER [CONTAINER...]
+```
+
+支持的选项：
+
+- -blkio-weight uint16：更新块 IO 限制，10~1000，默认值为 0，代表着无限制；
+- -cpu-period int：限制 CPU 调度器 CFS（Completely Fair Scheduler）使用时间，单位为微秒，最小1000；
+- -cpu-quota int：限制 CPU 调度器 CFS 配额，单位为微秒，最小 1000；
+- -cpu-rt-period int：限制 CPU 调度器的实时周期，单位为微秒；
+- -cpu-rt-runtime int：限制 CPU 调度器的实时运行时，单位为微秒；
+- -c，-cpu-shares int：限制 CPU 使用份额；
+- -cpus decimal：限制 CPU 个数；
+- -cpuset-cpus string：允许使用的 CPU 核，如 0-3，0，1；
+- -cpuset-mems string：允许使用的内存块，如 0-3，0，1；
+- -kernel-memory bytes：限制使用的内核内存；
+- -memory-reservation bytes：内存软限制；
+- -memory-swap bytes：内存加上缓存区的限制，-1 表示为对缓冲区无限制；
+- -restart string：容器退出后的重启策略。
+
+# 访问 Docker 仓库
+
+## Docker Hub 公共镜像市场
+
+1. 登录
+
+命令 docker login 输入用户名、密码登录。本地用户文件夹自动创建 .docker/config.json 文件保存用户的认证信息。
+```
+docker login
+
+```
+
+2. 基本操作
+
+用户即使不登陆也可以通过 docker search 命令查找官方仓库中的镜像，并利用 docker [image] pull 命令将它下载。
+
+官方提供的镜像一般是由单个单词命名的，比如 ubuntu、centos 这样的镜像，也称为根镜像。另一类由用户创建并维护的镜像，命名格式为「用户名/镜像名」，使用用户名称作为前缀，表明是某个用户下的某个仓库。
+
+用户登录后可以通过 docker push 命令将本地镜像推送到 Docker Hub。
+
+3. 自动创建
+
+自动创建（Automated Builds）是 Docker Hub 提供的自动化服务，自动跟随项目代码的变更重新构建镜像。比如，用户构建了某应用镜像，如果应用发布新版本，则用户需要手动更新镜像，自动创建就是用户通过 Docker Hub 指定跟踪一个目标网站（目前支持 GitHub 或 BitBucket）上的项目，一旦项目发生新的提交，则自动执行创建。
+
+要配置自动创建，包括如下步骤：
+
+1. 创建并登录 Docker Hub，以及目标网站如 Github；
+2. 在目标网站中允许 Docker Hub 访问服务；
+3. 在 Docker Hub 中配置一个「自动创建」类型的项目；
+4. 选取一个目标网站中的项目（需要含 Dockerfile）和分支；
+5. 指定 Dockerfile 的位置，并提交创建。
+
+之后，可以在 Docker Hub 的「自动创建」页面中跟踪每次创建的状态。
+
+## 第三方镜像市场
+
+下载镜像
+
+```
+docker pull index.tenxcloud.com/<namespace>/<repository>:<tag>
+```
+
+比如下载 node:latest 
+
+```
+docker pull index.tenxcloud.com/docker_library/node:latest
+```
+这是使用时速云仓库下载的命令，下载后可以将镜像标签修改为和官方一致的标签。
+
+## 搭建本地私有仓库
+
+1. 使用 registry 镜像创建私有仓库
+
+通过官方提供的 registry 镜像简单搭建一套本地私有仓库环境：
+
+```
+docker run -d -p 5000:5000 registry:2
+```
