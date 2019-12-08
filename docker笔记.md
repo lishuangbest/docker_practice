@@ -623,3 +623,295 @@ docker pull index.tenxcloud.com/docker_library/node:latest
 ```
 docker run -d -p 5000:5000 registry:2
 ```
+
+会自动下载并启动一个 registry 容器，创建本地的私有仓库服务。默认情况仓库会被放在创建容器的 /var/lib/registry 目录下。可以通过 -v 参数来将镜像文件存放在本地的指定仓库路径。例如下面的例子将上传的镜像放到 /opt/data/registry 目录
+```
+docker run -d -p 5000:5000 -v /opt/data/registry:/var/lib/registry registry:2
+```
+此时，在本地将启动一个私有仓库服务，监听端口为 5000。
+
+2. 管理私有仓库
+
+见 《Docker 技术入门与实战 第 3 版》第五章 5.3 搭建本地私有仓库。
+
+# Docker 数据管理
+
+容器中的管理数据主要有两种方式：
+
+- 数据卷（Data Volumes）：容器内数据直接映射到本地主句环境；
+- 数据卷容器（Data Volume Containers）：使用特定容器维护数据卷。
+
+## 数据卷
+
+数据卷（Data Volumes）是一个可供容器使用的特殊目录，它将主机操作系统目录直接映射进容器，类似于 Linux 中的 mount 行为。
+
+数据卷可以提供很多有用的特性：
+
+- 数据卷可以在容器之间共享和重用，容器间传递数据将变得高效与方便；
+- 对数据卷内数据的修改会立马生效，无论是容器内操作还是本地操作；
+- 对数据卷的更新不会影响镜像，解耦开应用的数据；
+- 卷会一直存在，直到没有容器使用，可以安全地卸载它。
+
+1. 创建数据卷
+
+volume 命令管理数据卷，快速在本地创建数据卷：
+
+```
+docker volume create -d local test
+```
+
+此时，查看 /var/lib/docker/volumes 路径下，会发现所创建的数据卷位置：
+
+```
+ls -l /var/lib/docker/volumes
+```
+
+除了 create 子命令外，docker volume 还支持 inspect（查看详细信息）、ls（列出已有数据卷）、prune（清理无用数据卷）、rm（删除数据卷）等。
+
+2. 绑定数据卷
+
+除了使用 volume 命令来管理数据卷外，还可以创建容器时将主机本地的任意路径挂载到容器内作为数据卷，这种形式创建的数据卷称为绑定数据卷。
+
+在用 docker [container] run 命令的时候，可以使用 -mount 选项来使用数据卷。
+
+-mount 选项支持三种类型的数据卷
+
+- volume：普通数据卷，映射到主机 /var/lib/docker/volumes 路径下；
+- bind：绑定数据卷，映射到主机指定路径下；
+- tmfs：临时数据卷，只存才于内存中。
+
+下面使用 training/webap 镜像创建一个 Web 容器
+
+```
+docker run -d -P --name web --mount type=bind,source=/webapp,destination=/opt/webapp training=webapp python app.py
+```
+
+上述命令等同于使用旧的 -v 标记可以在容器内创建一个数据卷：
+
+```
+docker run -d -P --name web -v /webapp:/opt/webapp training/webapp python app.py
+```
+
+这个功能在进行应用测试的时候十分方便，比如用户可以放置一些程序或数据到本地目录中实时进行更新，然后在容器内运行和使用。
+
+另外，本地目录的路径必须是绝对路径，容器内路径可以为相对路径。如果目录不存在，Docker 会自动创建。
+
+Docker 挂在数据卷的默认权限是读写（rw），用户也可以通过 ro 指定为只读：
+
+```
+docker run -d -P --name web -v /webapp:/opt/webapp:ro training/webapp python app.py
+```
+
+加了 :ro 后，容器内对所挂载数据卷内的数据就无法修改了。如果直接挂载一个文件到容器，使用文件编辑工具，包括 vi 或 sed --in-place 的时候，可能会造成文件 inode 的改变。从 Docker 1.1.0 起，这会导致报错误信息。所以推荐的方式是直接挂载文件所在的目录到容器内。
+
+## 数据卷容器
+
+如果用户需要在多个容器之间共享一些持续更新的数据，最简单的方式是使用数据卷容器。数据卷容器也是一个容器，但是它的目的是专门提供数据卷给其他容器挂载。
+
+首先创建一个数据卷容器 dbdata，并在其中创建一个数据卷挂载到 /dbdata：
+
+```
+docker run -it -v /dbdata --name dbdata ubuntu
+```
+
+然后可以在其他容器中使用 -volumes-form 来挂在 dbdata 容器中的数据卷，例如创建 db1 和 db2 两个容器，并从 dbdata 容器挂载数据卷：
+
+```
+docker run -it --volumes-from dbdata --name db1 ubuntu
+docker run -it --volumes-from dbdata --name db2 ubuntu
+```
+
+此时，容器 db1 和 db2 都挂载同一个数据卷到相同的 /dbdata 目录，三个容器任何一方在该目录下的写入，其他容器看不到。比如，在 dbdata 容器中创建一个 test 文件：
+
+```
+cd /dbdata
+touch test
+ls
+```
+
+在 db1 容器内查看它：
+
+```
+docker run -it --volumes-from dbdata --name db1 ubuntu
+ls dbdata/
+```
+
+可以多次使用 --volumes-from 参数来从多个容器挂载多个数据卷，还可以从其他已经挂在了容器卷的容器来挂载数据卷：
+
+```
+docker run -d --name db3 --volumes-from db1 traning/postgres
+```
+
+注意：使用 --volumes-from 参数所挂载数据卷的容器自身并不需要保持在运行状态。
+
+如果删除了挂载的容器（包括 dbdata、db1 和 db2），数据卷并不会被自动删除。如果要删除一个数据卷，必须在删除最后一个还挂载着它的容器时显式使用 docker run -v 命令来指定同时删除关联的容器。
+
+## 利用数据卷容器来迁移数据
+
+可以利用数据卷容器对其中的数据卷进行备份、回复，以实现数据的迁移。
+
+1. 备份
+
+使用下面的命令来备份 dbdata 数据卷容器内的数据卷：
+
+```
+docker run --volumes-from dbdata -v $(pwd):/backup --name worker ubuntu tar cvf /backup/backup.tar /dbdata
+```
+
+首先利用 ubuntu 镜像创建了一个容器 worker。使用 --volumes-from dbdata 参数来让 worker 容器挂载 dbdata 容器的数据卷（即 dbdata 数据卷）;使用 -v $(pwd):/backup 参数来挂载本地的当前目录到 worker 容器的 /backup 目录。
+
+worker 容器启动后，使用 tar cvf /backup/backup.tar /dbdata 命令将 /dbdata 下内容备份为容器内的 /backup/backup.tar，即宿主主机当前目录下的 backup.tar。
+
+2. 恢复
+
+如果要恢复数据到一个容器，可以按照下面的操作。首先创建一个带有数据卷的容器 dbdata2：
+
+```
+docker run -v /dbdata --name dbdata2 ubuntu /bun/bash
+```
+
+然后创建另一个新容器，挂载 dbdata2 的容器，并使用 untar 解压备份文件到所挂载的容器卷中：
+
+```
+docker run --volumes-from dbdata2 -v $(pwd):/backup --name busybox ubuntu tar xvf
+```
+
+# 端口映射与容器互联
+
+## 端口映射实现容器访问
+
+1. 从外部访问容器应用
+
+启动容器时，不指定对应参数，在容器外无法通过网络来访问容器内的网络应用和服务。
+
+在容器中运行一些网络应用，要让外部访问这些应用时，可以通过 -P 或 -p 参数来指定端口映射。当使用 -P 标记时，Docker 会随机映射一个 49000 ~ 49900 的端口到内部容器开放的网络端口：
+
+```
+docker run -d -P training/webapp python app.py
+```
+
+使用 -p 可以指定要映射的端口，并且，在一个指定端口上只可以绑定一个容器。支持的格式有 IP:HostPort:ContainerPort | IP::ContainerPort | HostPost:ContainerPort。
+
+
+2. 映射所有接口地址
+
+使用 HostPort:ContainerPort 格式本地的 5000 端口映射到容器的 5000 端口，可以执行以下命令：
+
+```
+docker run -d -p 5000:5000 training/webapp python app.py
+```
+
+此时默认会绑定本地所有接口上的所有地址。多次使用 -P 标记可以绑定多个端口。例如：
+
+```
+docker run -d -p 5000:5000 -p 3000:80 training/webapp python app.py
+```
+
+3. 映射到指定地址的端口
+
+可以使用 IP:HostPort:ContainerPort 格式指定映射使用一个特定地址，比如 localhost 地址 127.0.0.1：
+
+```
+docker run -d -p 127.0.0.1:5000:5000 training/webapp python app.py
+```
+
+4. 映射到指定地址的任意端口
+
+使用 IP::ContainerPort 绑定 localhost 的任意端口到容器的 5000 端口，本地主机会自动分配一个端口：
+
+```
+docker run -d -p 127.0.0.1::5000 training/webapp python app.py
+```
+
+还可以使用 udp 标记来指定 udp 端口：
+
+```
+docker run -d -p 127.0.0.1:5000:5000/udp training/webapp python app.py
+```
+
+5. 查看映射端口配置
+
+使用 docker port 来查看当前映射的端口配置，也可以查看到绑定的地址：
+
+```
+docker port eloquent_mendel 5000
+```
+
+容器有自己的内部网络和 IP 地址，使用 docker [container] inspect + 容器 ID 可以获取容器的具体信息。
+
+## 互联机制实现便捷互访
+
+容器的互联（linking）是一种让多个容器中的应用进行快速交互的方式。会在源和接收容器之间创建连接关系，接收容器可以通过容器名快速访问到源容器，而不用指定具体的 IP 地址。
+
+1. 自定义容器命名
+
+```
+docker run -d -P --name web training/webapp python app.py
+```
+
+查看容器名字
+
+```
+docker [container] inspect -f "{{ .Name }}" aed84ee21bde
+```
+
+执行 docker [container] run 的时候添加 --rm 标记，则容器在终止后会立刻删除。--rm 和 -d 参数不能同时使用。
+
+2. 容器互联
+
+使用 --link 参数可以让容器之间安全地进行交互。
+
+创建一个新的数据库容器：
+
+```
+docker run -d --name db training/postgres
+```
+
+创建一个新的 web 容器，并连结到 db 容器：
+
+```
+docker run -d -P --name web --link db:db training/webapp python app.py
+```
+
+此时，db 容器和 web 容器建立互联关系。
+
+--link 参数的格式为 --link name:alias，其中 name 是要链接的容器的名称。alias 是别名。
+
+通过 docker ps 命令查看容器的连接，可以看到自定义命名的容器 db 和 web，db 容器的 names 列有 db 也有 web/db，这表示 web 容器链接到 db 容器，web 容器将被允许访问 db 容器的信息。
+
+Docker 相当于两个互联的容器之间创建了一个虚机通道，而且不用映射它们的端口到宿主主机上。在启动 db 容器的时候并没有使用 -p 和 -P 标记，从而避免了暴露数据库服务端口到外部网络上。
+
+Docker 通过两种方式为容器公开连接信息：
+
+- 更新环境变量；
+- 更新 /etc/hosts 文件。
+
+使用 env 命令来查看 web 容器的环境变量：
+
+```
+docker run --rm --name web2 --link db:db training/webapp env
+```
+
+其中 DB_ 开头的环境变量是供 web 容器连接 db 容器使用，前缀采用大写的连接别名。
+
+除了环境变量，Docker 还添加 host 信息到父容器的 /etc/hosts 的文件。
+
+```
+docker run -t -i --rm --link db:db training/webapp /bin/bash
+
+cat /etc/hosts
+```
+
+这里有 2 个 hosts 信息，第一个是 web 容器，web 容器用自己的 id 作为默认主机名，第二个是 db 容器的 IP 和主机名。可以在 web 容器中安装 ping 命令来测试跟 db 容器的连通。
+
+```
+apt-get install -yqq inetutils-ping
+ping db
+```
+
+# 使用 Dockerfile 创建镜像
+
+Dockerfile 是一个文本格式的配置文件，用户可以使用 Dockerfile 来快速创建自定义镜像。
+
+Dockerfile 由命令语句组成，支持以 # 开头的注释行。一般而言，Dockerfile 主题内容分为四部分：基础镜像信息、维护者信息、镜像操作指令和容器启动时执行指令。见《Docker 技术入门与实战 第 3 版》 8章，68页。
+
